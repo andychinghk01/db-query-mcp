@@ -1,0 +1,59 @@
+{
+  "name": "db-query-mcp",
+  "version": "1.0.0",
+  "description": "A Model Context Protocol (MCP) server for running read-only SQL queries across multiple MySQL and PostgreSQL databases.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Andy Ching <andy@ching.hk>",
+  "homepage": "https://github.com/andychinghk01/db-query-mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andychinghk01/db-query-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/andychinghk01/db-query-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mysql",
+    "postgresql",
+    "postgres",
+    "sql",
+    "database",
+    "read-only",
+    "ai",
+    "llm"
+  ],
+  "bin": {
+    "db-query-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "start:bun": "bun dist/index.js",
+    "prepublishOnly": "pnpm build",
+    "prepack": "pnpm build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.8.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "mysql2": "^3.14.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.0",
+    "typescript": "^5.9.0"
+  }
+}
