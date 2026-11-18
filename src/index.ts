@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -9,12 +9,8 @@ import {
 import { loadConfig } from "./config.js";
 import { isReadOnlySelect } from "./query-guard.js";
 import { executeMysqlQuery, executePostgresQuery } from "./executors.js";
-import type {
-  ConnectionConfig,
-  QueryResult,
-  ResolvedDatabase,
-  ServerConfig,
-} from "./types.js";
+import { findDatabase } from "./resolve.js";
+import type { ConnectionConfig, QueryResult } from "./types.js";
 
 const QUERY_TIMEOUT_MS_DEFAULT = 30_000;
 const DEFAULT_ROW_LIMIT_DEFAULT = 1_000;
@@ -34,14 +30,22 @@ const TOOLS: Tool[] = [
     name: "query",
     description:
       "Execute a read-only SELECT query against a selected MySQL or PostgreSQL database. " +
-      "Supports optional parameterized values. Only SELECT/SHOW/DESCRIBE/EXPLAIN statements are allowed.",
+      "Supports optional parameterized values. Only SELECT/SHOW/DESCRIBE/EXPLAIN statements are allowed. " +
+      "If the same dbName exists on several connections (e.g. staging and prod), pass connectionName to choose one.",
     inputSchema: {
       type: "object",
       properties: {
         dbName: {
           type: "string",
           description:
-            "The name of the database to query (as shown by list_db).",
+            "The name of the database to query (as shown by list_db). " +
+            "If several connections expose this name, also pass connectionName.",
+        },
+        connectionName: {
+          type: "string",
+          description:
+            "Optional connection name (connectionName column from list_db). " +
+            "Required to disambiguate when the same dbName exists on several connections.",
         },
         sql: {
           type: "string",
@@ -63,19 +67,6 @@ const TOOLS: Tool[] = [
 
 function resolveConnectionType(connection: ConnectionConfig): "mysql" | "postgresql" {
   return connection.type ?? "mysql";
-}
-
-function findDatabase(
-  config: ServerConfig,
-  name: string,
-): ResolvedDatabase | undefined {
-  for (const connection of config.connections) {
-    const database = connection.databases.find((d) => d.name === name);
-    if (database) {
-      return { connection, database };
-    }
-  }
-  return undefined;
 }
 
 async function executeQuery(
@@ -149,6 +140,7 @@ server.setRequestHandler(
     if (name === "query") {
       const dbName = args?.dbName;
       const sql = args?.sql;
+      const connectionName = args?.connectionName;
       const params = Array.isArray(args?.params) ? args.params : [];
 
       if (typeof dbName !== "string" || typeof sql !== "string") {
@@ -157,12 +149,11 @@ server.setRequestHandler(
         );
       }
 
-      const resolved = findDatabase(config, dbName);
-      if (!resolved) {
-        throw new Error(
-          `Database "${dbName}" not found. Use list_db to see available databases.`,
-        );
+      if (connectionName !== undefined && typeof connectionName !== "string") {
+        throw new Error("connectionName must be a string when provided.");
       }
+
+      const resolved = findDatabase(config, dbName, connectionName);
 
       if (!isReadOnlySelect(sql)) {
         throw new Error(

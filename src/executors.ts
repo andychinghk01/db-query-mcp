@@ -14,14 +14,12 @@ interface MysqlQueryOptions {
 /**
  * Apply a row limit to a query without rewriting SELECT lists.
  *
- * MySQL: `LIMIT n` can be appended to most SELECT/SHOW/EXPLAIN statements.
- * Postgres: `FETCH FIRST n ROWS ONLY` works on SELECT; we fall back to
- * LIMIT for SHOW/DESCRIBE/EXPLAIN which are Postgres-extended via psql.
- * To keep it simple and correct for both engines, we wrap the user query
- * as a subselect when it is a SELECT — this also guarantees the limit
- * applies to the outer result regardless of an inner LIMIT the user wrote.
+ * Both engines: a SELECT is wrapped as a subselect, which guarantees the
+ * limit applies to the outer result regardless of an inner LIMIT the user
+ * wrote. EXPLAIN/SHOW/DESCRIBE are returned unmodified because neither
+ * engine accepts a trailing LIMIT on them; rowsToResult caps those rows in JS.
  */
-function withRowLimit(sql: string, type: "mysql" | "postgresql", limit: number): string {
+export function withRowLimit(sql: string, type: "mysql" | "postgresql", limit: number): string {
   const trimmed = sql.trim().replace(/;+\s*$/, "");
   if (type === "postgresql") {
     // FETCH FIRST works on SELECT; SHOW/DESCRIBE/EXPLAIN don't accept it,
@@ -32,18 +30,21 @@ function withRowLimit(sql: string, type: "mysql" | "postgresql", limit: number):
     }
     return trimmed;
   }
-  // MySQL: append LIMIT. A trailing LIMIT from the user is overridden by the
-  // guard's outer subselect wrapper below for SELECTs.
+  // MySQL rejects `EXPLAIN ... LIMIT n` and `SHOW ... LIMIT n`, so only
+  // wrap SELECTs and leave everything else untouched.
   if (/^\s*SELECT\b/i.test(trimmed)) {
     return `SELECT * FROM (${trimmed}) AS _dq_sub LIMIT ${limit}`;
   }
-  // SHOW/DESCRIBE/EXPLAIN — append LIMIT (MySQL accepts it on SHOW/EXPLAIN).
-  return `${trimmed} LIMIT ${limit}`;
+  return trimmed;
 }
 
 function rowsToResult(
-  rows: Record<string, unknown>[],
+  allRows: Record<string, unknown>[],
+  rowLimit: number,
 ): QueryResult {
+  // SQL-side LIMIT is not applied to EXPLAIN/SHOW (or SELECTs not starting
+  // with "SELECT"), so enforce the cap here.
+  const rows = allRows.slice(0, rowLimit);
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
   return { columns, rows };
 }
@@ -74,7 +75,7 @@ export async function executeMysqlQuery(
       namedPlaceholders: false,
     };
     const [rows] = await conn.query<RowDataPacket[]>(queryOptions);
-    return rowsToResult(rows as Record<string, unknown>[]);
+    return rowsToResult(rows as Record<string, unknown>[], rowLimit);
   } finally {
     await conn.end();
   }
@@ -102,7 +103,7 @@ export async function executePostgresQuery(
     await client.connect();
     const limitedSql = withRowLimit(sql, "postgresql", rowLimit);
     const result = await client.query(limitedSql, params);
-    return rowsToResult(result.rows);
+    return rowsToResult(result.rows, rowLimit);
   } finally {
     await client.end();
   }

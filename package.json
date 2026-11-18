@@ -23,37 +23,27 @@
     "database",
     "read-only",
     "ai",
-    "llm"
+    "llm",
+    "bun"
   ],
   "bin": {
-    "db-query-mcp": "dist/index.js"
+    "db-query-mcp": "src/index.ts"
   },
-  "main": "dist/index.js",
+  "main": "src/index.ts",
   "files": [
-    "dist",
+    "src",
+    "bun.lock",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "start": "node dist/index.js",
-    "start:bun": "bun dist/index.js",
-    "prepublishOnly": "pnpm build",
-    "prepack": "pnpm build"
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "test": "bun test"
   },
-  "engines": {
-    "node": ">=20"
-  },
-  "packageManager": "pnpm@10.8.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.18.0",
     "mysql2": "^3.14.0",
     "pg": "^8.16.0"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@types/pg": "^8.15.0",
-    "typescript": "^5.9.0"
   }
 }

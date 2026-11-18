@@ -1,6 +1,6 @@
 # db-query-mcp
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for running **read-only SQL queries** across multiple **MySQL** and **PostgreSQL** databases. Built with TypeScript, runnable with [Node.js](https://nodejs.org/), [Bun](https://bun.sh/), or [pnpm](https://pnpm.io/).
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for running **read-only SQL queries** across multiple **MySQL** and **PostgreSQL** databases. Built with TypeScript and runs on [Bun](https://bun.sh/).
 
 Give an AI assistant (Claude Desktop, Copilot, Cursor, Zed, or any MCP-compatible client) safe, read-only access to your databases — without pasting credentials into the chat.
 
@@ -10,31 +10,25 @@ Give an AI assistant (Claude Desktop, Copilot, Cursor, Zed, or any MCP-compatibl
 - 🔒 **Read-only by design** — only `SELECT`/`SHOW`/`DESCRIBE`/`DESC`/`EXPLAIN`; DML/DDL keywords rejected
 - 🔐 **Credentials out of source** — connection config lives in `~/.config/db-query-mcp/config.json`, never in the repo
 - ⏱️ **Safety guardrails** — automatic `LIMIT`, per-query timeout, parameterized queries
-- 📦 **Installable** — `npx`, `pnpm dlx`, `bunx`, or global install; one binary, no source editing
+- 📦 **Installable** — `bunx` or global install; one binary, no source editing
 - 🧩 **Single config, many databases** — each connection can expose multiple databases
 
 ## Requirements
 
-- Node.js ≥ 20, Bun, or pnpm (any one)
+- [Bun](https://bun.sh/)
 
 ## Install
 
 ### Run without installing (recommended for MCP clients)
 
 ```bash
-npx db-query-mcp
-# or
-pnpm dlx db-query-mcp
-# or
 bunx db-query-mcp
 ```
 
 ### Install globally
 
 ```bash
-npm install -g db-query-mcp
-# or
-pnpm add -g db-query-mcp
+bun add -g db-query-mcp
 ```
 
 Then run `db-query-mcp` directly.
@@ -44,9 +38,8 @@ Then run `db-query-mcp` directly.
 ```bash
 git clone https://github.com/andychinghk01/db-query-mcp.git
 cd db-query-mcp
-pnpm install
-pnpm build
-node dist/index.js
+bun install
+bun start
 ```
 
 ## Configuration
@@ -62,9 +55,55 @@ db-query-mcp reads connections from a JSON config file.
 
 ```bash
 mkdir -p ~/.config/db-query-mcp
-cp examples/config.example.json ~/.config/db-query-mcp/config.json
-# edit with your real credentials
-$EDITOR ~/.config/db-query-mcp/config.json
+```
+
+Create `~/.config/db-query-mcp/config.json` with the schema below and edit it with your real credentials.
+
+### Example
+
+```json
+{
+  "queryTimeoutMs": 30000,
+  "defaultRowLimit": 1000,
+  "connections": [
+    {
+      "name": "stg-mysql",
+      "description": "Read-only staging MySQL",
+      "type": "mysql",
+      "host": "mysql.example.com",
+      "port": 3306,
+      "username": "readonly-user",
+      "password": "your-password",
+      "databases": [
+        { "name": "users", "description": "User accounts" },
+        { "name": "billing", "description": "Billing and invoices" }
+      ]
+    },
+    {
+      "name": "prod-postgres",
+      "description": "Read-only production PostgreSQL",
+      "type": "postgresql",
+      "host": "postgres.example.com",
+      "port": 5432,
+      "username": "readonly-user",
+      "password": "your-password",
+      "databases": [
+        { "name": "analytics", "description": "Event analytics warehouse" }
+      ]
+    },
+    {
+      "name": "legacy-mysql",
+      "description": "Legacy MySQL (type omitted, defaults to mysql)",
+      "host": "legacy.example.com",
+      "port": 3306,
+      "username": "readonly-user",
+      "password": "your-password",
+      "databases": [
+        { "name": "legacy_app", "description": "Legacy application DB" }
+      ]
+    }
+  ]
+}
 ```
 
 ### Schema
@@ -110,34 +149,8 @@ Add the server to your MCP client config.
 {
   "mcpServers": {
     "db-query-mcp": {
-      "command": "npx",
-      "args": ["db-query-mcp"]
-    }
-  }
-}
-```
-
-### With Bun
-
-```json
-{
-  "mcpServers": {
-    "db-query-mcp": {
       "command": "bunx",
       "args": ["db-query-mcp"]
-    }
-  }
-}
-```
-
-### With pnpm
-
-```json
-{
-  "mcpServers": {
-    "db-query-mcp": {
-      "command": "pnpm",
-      "args": ["dlx", "db-query-mcp"]
     }
   }
 }
@@ -149,7 +162,7 @@ Add the server to your MCP client config.
 {
   "mcpServers": {
     "db-query-mcp": {
-      "command": "npx",
+      "command": "bunx",
       "args": ["db-query-mcp"],
       "env": { "DB_QUERY_MCP_CONFIG": "/custom/path/config.json" }
     }
@@ -170,8 +183,17 @@ Executes a read-only query.
 | Argument | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dbName` | string | yes | Database name from `list_db` |
+| `connectionName` | string | no | Connection name from `list_db`. Required when the same `dbName` exists on several connections |
 | `sql` | string | yes | Read-only SQL statement |
 | `params` | array | no | Positional parameters — `?` for MySQL, `$1, $2, ...` for PostgreSQL |
+
+If the same database name is exposed by more than one connection (e.g. a staging and a prod `account_system`), a call with only `dbName` fails with an error listing the connections instead of guessing. Pass `connectionName` to choose one:
+
+```json
+{ "connectionName": "prod_account_system", "dbName": "account_system", "sql": "SELECT 1" }
+```
+
+`EXPLAIN`, `SHOW`, and `DESCRIBE` statements are sent as written (no `LIMIT` is appended, since the engines reject it); their result rows are still capped at `defaultRowLimit` after the query returns.
 
 ## Safety guardrails
 
@@ -186,12 +208,12 @@ These guardrails reduce risk but are not a substitute for least-privilege databa
 ## Development
 
 ```bash
-pnpm install
-pnpm build      # tsc -> dist/
-pnpm dev        # watch mode
-pnpm start      # node dist/index.js
-pnpm start:bun  # bun dist/index.js
+bun install
+bun dev     # watch mode
+bun start   # run src/index.ts
 ```
+
+No build step is required — Bun runs TypeScript directly.
 
 ## License
 
