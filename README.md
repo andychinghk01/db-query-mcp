@@ -13,16 +13,59 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for ru
 
 [Bun](https://bun.sh/) **1.4 or later**. macOS is supported; other platforms are best-effort and untested.
 
+db-query-mcp runs from a source checkout. It does not need to be published to a registry, and no build step is required.
+
 ```sh
-bunx db-query-mcp ui           # open the manager without installing globally
-bun add -g db-query-mcp        # optional: install the CLI
+git clone https://github.com/andychinghk01/db-query-mcp.git
+cd db-query-mcp
+bun install
+bun run ui                     # open the manager in your browser
 ```
 
-With no arguments, `db-query-mcp` starts the MCP stdio server. No separate build is required.
+With no arguments, `bun src/index.ts` starts the MCP stdio server.
+
+### Run from a checkout
+
+Every command works from the checkout directory:
+
+```sh
+bun run ui                     # same as: bun src/index.ts ui
+bun src/index.ts migrate --dry-run
+bun src/index.ts set-password <name>
+bun src/index.ts doctor
+```
+
+To run the commands from any directory, use an alias (replace the path with your checkout):
+
+```sh
+alias dqm='bun /absolute/path/to/db-query-mcp/src/index.ts'
+dqm ui
+dqm doctor
+```
+
+Alternatively, `bun link` in the checkout registers the package locally, and `bun link db-query-mcp` in another project makes the `db-query-mcp` bin available there.
+
+The sections below write commands as `db-query-mcp <command>`; substitute `bun run ui`, the `dqm` alias, or `bun src/index.ts <command>` for your setup. The package is also usable through `bunx` or `bun add -g` once it is published to a registry.
 
 ## Manage connections
 
-Run `db-query-mcp ui` (or `bunx db-query-mcp ui`). Add a connection, enter its database credentials, add the databases to expose, and save. Use **Test connection** to run `SELECT 1`. To change an existing password, select **Replace**, enter the new value, and save. The current password is never shown. Production cards carry a red **PROD** badge, and deleting one requires typing its name.
+Run `bun run ui` from the checkout (see [Run from a checkout](#run-from-a-checkout)). It starts a server on `127.0.0.1` and opens your default browser at `http://127.0.0.1:<port>/#t=<token>`. Add a connection, enter its database credentials, add the databases to expose, and save. Use **Test connection** to run `SELECT 1`. To change an existing password, select **Replace**, enter the new value, and save. The current password is never shown. Production cards carry a red **PROD** badge, and deleting one requires typing its name.
+
+Launch options:
+
+| Command | Effect |
+| --- | --- |
+| `bun run ui` | Random free port; opens the default browser |
+| `bun run ui -- --no-open` | Prints the URL to stderr and does not open a browser; paste it into a browser yourself |
+| `bun run ui -- --port 4321` | Fixed port (1 to 65535) |
+
+The `--` after `bun run ui` is required so the flags reach the command. Only one UI instance can run at a time; a second launch is refused. A UI session reads and writes your real config (`~/.config/db-query-mcp/config.json`) and Keychain service. To try it without touching them, point it at scratch values and delete the entries afterwards:
+
+```sh
+DB_QUERY_MCP_CONFIG=/tmp/try/config.json DB_QUERY_MCP_KEYCHAIN_SERVICE=dqm-try bun run ui
+```
+
+The first Keychain access may show a macOS prompt for the Bun binary; choose **Always Allow**.
 
 The UI runs only on `127.0.0.1`; keep its launch URL private. The browser removes the session token from the URL after loading it. Use **Quit** to stop the server, or let it stop after 15 minutes without authenticated API activity. If the config changes elsewhere, use **Reload** before saving again. Shortcuts: `N` adds a connection, `/` focuses search, `Cmd+S` saves, and `Esc` closes the editor.
 
@@ -105,20 +148,20 @@ Exit codes: `0` success, `1` operation or diagnostic failure, `2` invalid usage.
 
 ## MCP client configuration
 
-The launch configuration is unchanged. For clients using `mcpServers` (such as Claude Desktop or Claude Code):
+The launch configuration is unchanged. For clients using `mcpServers` (such as Claude Desktop or Claude Code), point `bun` at the checkout's entry file:
 
 ```json
 {
   "mcpServers": {
     "db-query-mcp": {
-      "command": "bunx",
-      "args": ["db-query-mcp"]
+      "command": "bun",
+      "args": ["/absolute/path/to/db-query-mcp/src/index.ts"]
     }
   }
 }
 ```
 
-For a custom path, add `"env": { "DB_QUERY_MCP_CONFIG": "/custom/path/config.json" }` to the server entry. From a source checkout, you can still launch `bun /absolute/path/to/src/index.ts` with no arguments.
+For a custom config path, add `"env": { "DB_QUERY_MCP_CONFIG": "/custom/path/config.json" }` to the server entry. Once the package is published to a registry, `"command": "bunx", "args": ["db-query-mcp"]` works too.
 
 ### Tools
 
