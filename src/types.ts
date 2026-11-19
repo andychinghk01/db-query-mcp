@@ -24,7 +24,8 @@ export interface ConnectionConfig {
   host: string;
   port: number;
   username: string;
-  password: string;
+  password?: string;
+  environment?: "dev" | "stg" | "prod";
   databases: DatabaseConfig[];
 }
 

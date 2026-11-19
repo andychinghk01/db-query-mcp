@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connections · db-query-mcp</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.ts"></script>
+</head>
+<body>
+  <header class="top"><div class="brand"><span class="mark" aria-hidden="true">▤</span> db-query-mcp <span class="local">LOCAL MANAGER</span></div><button id="quit" disabled>Quit</button></header>
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <p class="eyebrow">WORKSPACE / DATABASES</p>
+      <h1 id="title">Connections</h1>
+      <p class="muted">Manage database targets and keep credentials in your Keychain.</p>
+    </section>
+    <div id="conflict" class="banner warning" hidden><span>Configuration changed. Reload before saving.</span><button id="reload">Reload</button></div>
+    <div id="legacy" class="banner warning" hidden><span>Plaintext passwords are still on disk.</span><button id="migrate"></button></div>
+    <div class="toolbar">
+      <label class="search"> <span class="sr-only">Search connections</span><input id="search" type="search" placeholder="Search connections"></label>
+      <button id="add" class="primary" disabled>+ Add connection</button>
+    </div>
+    <p id="count" class="eyebrow"></p>
+    <div id="cards" class="cards" aria-label="Configured connections"></div>
+    <p id="empty" class="empty" hidden></p>
+    <footer id="settings" class="muted"></footer>
+  </main>
+  <dialog id="editor" class="drawer" aria-labelledby="editor-title">
+    <form id="form">
+      <div class="drawer-head"><div><p id="editor-kicker" class="eyebrow">CONNECTION</p><h2 id="editor-title"></h2></div><button id="close" type="button" aria-label="Close editor">✕</button></div>
+      <div class="fields">
+        <section class="field-grid" aria-label="Connection details">
+          <label>Name<input id="name" required maxlength="64" pattern="[A-Za-z0-9_.\-]{1,64}" autofocus></label>
+          <label>Environment<select id="environment"><option value="">Unset</option><option value="dev">Development</option><option value="stg">Staging</option><option value="prod">Production</option></select></label>
+          <label class="wide">Description<input id="description" required></label>
+          <label>Engine<select id="engine"><option value="mysql">MySQL</option><option value="postgresql">PostgreSQL</option></select></label>
+          <label>Username<input id="username" required autocomplete="off"></label>
+          <label>Host<input id="host" required></label>
+          <label>Port<input id="port" type="number" required min="1" max="65535"></label>
+        </section>
+        <section class="section" aria-labelledby="credentials-title">
+          <h3 id="credentials-title">Password</h3>
+          <p id="password-state" class="muted"></p>
+          <label id="password-field">New password<input id="password" type="password" autocomplete="new-password"></label>
+          <div class="actions"><button id="replace" type="button">Replace</button><button id="remove-password" type="button">Remove password</button></div>
+        </section>
+        <section class="section" aria-labelledby="databases-title">
+          <h3 id="databases-title">Databases</h3>
+          <div id="databases" class="chips"></div>
+          <button id="add-db" type="button">+ Add database</button>
+        </section>
+        <div class="actions"><button id="test" type="button">Test connection</button><span id="test-result" role="status"></span></div>
+        <div id="delete-confirm" class="banner warning" hidden>
+          <label>Type <strong id="delete-name"></strong> to delete<input id="confirmation" autocomplete="off"></label>
+          <button class="danger" id="confirm-delete" type="button" disabled>Confirm delete</button>
+          <button id="abort-delete" type="button">Keep connection</button>
+        </div>
+        <div id="editor-conflict" class="banner warning" hidden><span>Configuration changed.</span><button id="editor-reload" type="button">Reload</button></div>
+        <p id="editor-feedback" role="status"></p>
+      </div>
+      <div class="drawer-foot"><button id="delete" class="danger" type="button">Delete</button><div class="actions"><button id="cancel" type="button">Cancel</button><button id="save" class="primary" type="submit">Save connection</button></div></div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

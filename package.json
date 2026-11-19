@@ -1,6 +1,6 @@
 {
   "name": "db-query-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A Model Context Protocol (MCP) server for running read-only SQL queries across multiple MySQL and PostgreSQL databases.",
   "type": "module",
   "license": "MIT",
@@ -39,11 +39,19 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch src/index.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "ui": "bun src/index.ts ui",
+    "test:e2e": "bun test ./src/ui/__e2e__/ui.e2e.ts",
+    "screenshots": "bun src/ui/__e2e__/screenshots.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.18.0",
     "mysql2": "^3.14.0",
     "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "typescript": "^5"
   }
 }

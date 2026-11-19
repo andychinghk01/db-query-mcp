@@ -7,3 +7,5 @@ node_modules/
 
 # Local config — never commit real credentials
 config.local.json
+*.tmp
+docs/tmp/
